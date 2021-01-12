@@ -32,11 +32,9 @@ class AzureDataLakeConnector(JSONDataLakeConnection):
     def rmdir(self, path: str):
         self._cwd.delete_sub_directory(path)
 
-    def store(self, serialized_json_content: str, filename: str):
-        """ Overwrites existing files! """
+    def store(self, serialized_json_content: str, filename: str, overwrite=False):
         file_client = self._cwd.create_file(filename)
-        file_client.append_data(data=serialized_json_content, offset=0, length=len(serialized_json_content))
-        file_client.flush_data(len(serialized_json_content))
+        file_client.upload_data(serialized_json_content, overwrite=overwrite)
 
     def retrieve(self, filename: str) -> dict:
         file_client = self._cwd.get_file_client(filename)
