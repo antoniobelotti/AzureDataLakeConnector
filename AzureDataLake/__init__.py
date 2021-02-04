@@ -1,11 +1,9 @@
-import json
-
 from AbstractDataLake import AbstractDataLake
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.filedatalake import DataLakeServiceClient
 
 
-class AzureDataLakeConnector(AbstractDataLake):
+class AzureDataLake(AbstractDataLake):
 
     def __init__(self, storage_account_name, storage_account_key, container_name):
         self.storage_account_name = storage_account_name
@@ -13,6 +11,7 @@ class AzureDataLakeConnector(AbstractDataLake):
 
         self._connect()
         self._create_file_system(container_name)
+        self._container_name = container_name
 
     def _connect(self):
         url = f"https://{self.storage_account_name}.dfs.core.windows.net"
@@ -36,11 +35,10 @@ class AzureDataLakeConnector(AbstractDataLake):
         file_client = self._cwd.create_file(filename)
         file_client.upload_data(serialized_json_content, overwrite=overwrite)
 
-    def retrieve(self, filename: str) -> dict:
+    def retrieve(self, filename: str):
         file_client = self._cwd.get_file_client(filename)
         download = file_client.download_file()
-        downloaded_bytes = download.readall()
-        return json.loads(downloaded_bytes)
+        return download.readall()
 
     def rm(self, filename: str):
         self._cwd.get_file_client(filename).delete_file()
@@ -52,6 +50,6 @@ class AzureDataLakeConnector(AbstractDataLake):
         directory_client = self.file_system_client.get_directory_client(dirname)
         directory_client.rename_directory(rename_destination=new_dirname)
 
-    def mv_file(self, filepath, container_name, new_filepath):
+    def mv_file(self, filepath, new_filepath):
         fc = self._cwd.get_file_client(filepath)
-        fc.rename_file(f"{container_name}/{new_filepath}")
+        fc.rename_file(f"{self._container_name}/{new_filepath}")
