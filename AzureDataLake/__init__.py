@@ -1,11 +1,11 @@
 import json
 
-from AbstractJSONDataLakeConnector import JSONDataLakeConnection
+from AbstractDataLake import AbstractDataLake
 from azure.core.exceptions import ResourceExistsError
 from azure.storage.filedatalake import DataLakeServiceClient
 
 
-class AzureDataLakeConnector(JSONDataLakeConnection):
+class AzureDataLakeConnector(AbstractDataLake):
 
     def __init__(self, storage_account_name, storage_account_key, container_name):
         self.storage_account_name = storage_account_name
@@ -47,3 +47,11 @@ class AzureDataLakeConnector(JSONDataLakeConnection):
 
     def ls(self, path: str) -> [str]:
         return [p.name for p in self.file_system_client.get_paths(path=path)]
+
+    def mv(self, dirname: str, new_dirname: str):
+        directory_client = self.file_system_client.get_directory_client(dirname)
+        directory_client.rename_directory(rename_destination=new_dirname)
+
+    def mv_file(self, filepath, container_name, new_filepath):
+        fc = self._cwd.get_file_client(filepath)
+        fc.rename_file(f"{container_name}/{new_filepath}")
