@@ -28,7 +28,7 @@ class AzureDataLake(AbstractDataLake):
     def mkdir(self, path: str):
         self.file_system_client.create_directory(path)
 
-    def rmdir(self, path: str):
+    def rmdir(self, path: str, recursive=True):
         self._cwd.delete_sub_directory(path)
 
     def store(self, serialized_json_content: str, filename: str, overwrite=False):
@@ -46,10 +46,10 @@ class AzureDataLake(AbstractDataLake):
     def ls(self, path: str) -> [str]:
         return [p.name for p in self.file_system_client.get_paths(path=path)]
 
-    def mv(self, dirname: str, new_dirname: str):
+    def mvdir(self, dirname: str, new_dirname: str):
         directory_client = self.file_system_client.get_directory_client(dirname)
         directory_client.rename_directory(rename_destination=new_dirname)
 
-    def mv_file(self, filepath, new_filepath):
+    def mvfile(self, filepath: str, new_filepath: str):
         fc = self._cwd.get_file_client(filepath)
         fc.rename_file(f"{self._container_name}/{new_filepath}")
