@@ -5,9 +5,10 @@ from azure.storage.filedatalake import DataLakeServiceClient
 
 class AzureDataLake(AbstractDataLake):
 
-    def __init__(self, storage_account_name, storage_account_key, container_name):
+    def __init__(self, storage_account_name, storage_account_key, container_name, app_name):
         self.storage_account_name = storage_account_name
         self.storage_account_key = storage_account_key
+        self.app_name = app_name
 
         self._connect()
         self._create_file_system(container_name)
@@ -23,33 +24,55 @@ class AzureDataLake(AbstractDataLake):
         except ResourceExistsError:
             self.file_system_client = self.service_client.get_file_system_client(file_system=container_name)
 
-        self._cwd = self.file_system_client.get_directory_client("/")
+        self._ROOT_FOLDER = self.file_system_client.get_directory_client(f"/{self.app_name}")
 
     def mkdir(self, path: str):
-        self.file_system_client.create_directory(path)
+        self.file_system_client.create_directory(f"/{self.app_name}{path}")
 
     def rmdir(self, path: str, recursive=True):
-        self._cwd.delete_sub_directory(path)
+        if path.startswith("/"):
+            path = path[1:]
+        self._ROOT_FOLDER.delete_sub_directory(path)
 
     def store(self, serialized_json_content: str, filename: str, overwrite=False):
-        file_client = self._cwd.create_file(filename)
+        if filename.startswith("/"):
+            filename = filename[1:]
+        file_client = self._ROOT_FOLDER.create_file(filename)
         file_client.upload_data(serialized_json_content, overwrite=overwrite)
 
     def retrieve(self, filename: str):
-        file_client = self._cwd.get_file_client(filename)
+        if filename.startswith("/"):
+            filename = filename[1:]
+
+        file_client = self._ROOT_FOLDER.get_file_client(filename)
         download = file_client.download_file()
         return download.readall()
 
     def rm(self, filename: str):
-        self._cwd.get_file_client(filename).delete_file()
+        if filename.startswith("/"):
+            filename = filename[1:]
+        self._ROOT_FOLDER.get_file_client(filename).delete_file()
 
     def ls(self, path: str) -> [str]:
-        return [p.name for p in self.file_system_client.get_paths(path=path)]
+        all_paths = []
+        for path in self.file_system_client.get_paths(path=f"/{self.app_name}{path}"):
+            all_paths.append(path.name.split(self.app_name)[1])
+        return all_paths
 
     def mvdir(self, dirname: str, new_dirname: str):
-        directory_client = self.file_system_client.get_directory_client(dirname)
-        directory_client.rename_directory(rename_destination=new_dirname)
+        if dirname.startswith("/"):
+            dirname = dirname[1:]
+        if new_dirname.startswith("/"):
+            new_dirname = new_dirname[1:]
+
+        directory_client = self.file_system_client.get_directory_client(f"{self.app_name}/{dirname}")
+        directory_client.rename_directory(new_name=f"{directory_client.file_system_name}/{self.app_name}/{new_dirname}")
 
     def mvfile(self, filepath: str, new_filepath: str):
-        fc = self._cwd.get_file_client(filepath)
-        fc.rename_file(f"{self._container_name}/{new_filepath}")
+        if filepath.startswith("/"):
+            filepath = filepath[1:]
+        if new_filepath.startswith("/"):
+            new_filepath = new_filepath[1:]
+
+        fc = self._ROOT_FOLDER.get_file_client(filepath)
+        fc.rename_file(f"{self._container_name}/{self.app_name}/{new_filepath}")
